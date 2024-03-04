@@ -4,32 +4,51 @@ import android.app.Activity
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
 import android.provider.MediaStore
-import android.view.View
 import android.widget.Button
 import android.widget.ImageView
-import androidx.activity.result.ActivityResult
-import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.blue
+import androidx.core.graphics.drawable.toDrawable
+import androidx.core.graphics.get
+import androidx.core.graphics.green
+import androidx.core.graphics.red
+import com.google.android.material.slider.Slider
 
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var currentImage: ImageView
+    private lateinit var originalImage : Bitmap
+    private lateinit var slider: Slider
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         bindViews()
+        slider = findViewById<Slider>(R.id.slBrightness)
 
         //do not change this line
         currentImage.setImageBitmap(createBitmap())
+        originalImage = (currentImage.drawable as BitmapDrawable).bitmap
 
         val btnGallery = findViewById<Button>(R.id.btnGallery).setOnClickListener {
             val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
             activityResultLauncher.launch(intent)
+            originalImage = (currentImage.drawable as BitmapDrawable).bitmap
+
         }
+
+        slider.addOnChangeListener (
+            Slider.OnChangeListener { p0, p1, p2 ->
+                val delta = p0.value.toInt()
+
+                adjustBrightness(delta)
+
+            }
+        )
     }
 
     private fun bindViews() {
@@ -41,7 +60,9 @@ class MainActivity : AppCompatActivity() {
             if (result.resultCode == Activity.RESULT_OK) {
                 val photoUri = result.data?.data ?: return@registerForActivityResult
                 // code to update ivPhoto with loaded image
+                slider.value = 0F
                 currentImage.setImageURI(photoUri)
+
             }
         }
 
@@ -75,4 +96,39 @@ class MainActivity : AppCompatActivity() {
         bitmapOut.setPixels(pixels, 0, width, 0, 0, width, height)
         return bitmapOut
     }
+
+    fun adjustBrightness(offset : Int) {
+
+        val image = originalImage.copy(Bitmap.Config.RGB_565, true)
+
+        fun addOffset(color: Int, offset: Int): Int {
+            val newColorValue = color + offset
+            return if (newColorValue > 255) 255
+            else if (newColorValue < 0) 0
+            else newColorValue
+        }
+
+
+        for (x in 0 until image.width) {
+            for (y in 0 until image.height) {
+                val pixel = originalImage.get(x,y)
+
+                val oldColor = Color.rgb(
+                    pixel.red,
+                    pixel.green,
+                    pixel.blue
+                )
+
+                val newColor = Color.rgb(
+                    addOffset(oldColor.red, offset),
+                    addOffset(oldColor.green, offset),
+                    addOffset(oldColor.blue, offset)
+                )
+
+                image.setPixel(x,y, newColor)
+            }
+        }
+        currentImage.setImageBitmap(image)
+    }
+
 }
