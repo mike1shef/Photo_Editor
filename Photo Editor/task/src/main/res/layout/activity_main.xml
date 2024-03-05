@@ -98,5 +98,65 @@
             android:layout_height="wrap_content"/>
     </LinearLayout>
 
+    <LinearLayout
+        android:id="@+id/linear3"
+        app:layout_constraintTop_toBottomOf="@id/linear2"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="10dp"
+        >
+
+        <TextView
+            android:id="@+id/saturation_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingEnd="10dp"
+            android:layout_gravity="center"
+            android:text="saturation"/>
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/slSaturation"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:valueFrom="-250"
+            android:valueTo="250"
+            android:stepSize="10"
+            android:value="0"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/linear4"
+        app:layout_constraintTop_toBottomOf="@id/linear3"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="10dp"
+        >
+
+        <TextView
+            android:id="@+id/gamma_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingEnd="10dp"
+            android:layout_gravity="center"
+            android:text="gamma"/>
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/slGamma"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:valueFrom="0.2"
+            android:valueTo="4.0"
+            android:stepSize="0.2"
+            android:value="1.0"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+    </LinearLayout>
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>
