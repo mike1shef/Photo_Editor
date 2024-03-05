@@ -13,11 +13,8 @@ import androidx.activity.result.contract.ActivityResultContracts.StartActivityFo
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.blue
 import androidx.core.graphics.drawable.toBitmap
-import androidx.core.graphics.drawable.toDrawable
-import androidx.core.graphics.get
 import androidx.core.graphics.green
 import androidx.core.graphics.red
-import androidx.core.view.drawToBitmap
 import com.google.android.material.slider.Slider
 
 
@@ -31,6 +28,11 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         bindViews()
 
+        slider.addOnChangeListener ( Slider.OnChangeListener { _, value, _ ->
+                currentImage.setImageBitmap(adjustBrightness(value.toInt()))
+
+            })
+
         //do not change this line
         currentImage.setImageBitmap(createBitmap())
         originalImage = (currentImage.drawable as BitmapDrawable).bitmap
@@ -39,15 +41,12 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
             activityResultLauncher.launch(intent)
             originalImage = (currentImage.drawable as BitmapDrawable).bitmap
+        }
+
+        val btnSave = findViewById<Button>(R.id.btnSave).setOnClickListener {
 
         }
 
-        slider.addOnChangeListener (
-            Slider.OnChangeListener { _, value, _ ->
-                currentImage.setImageBitmap(adjustBrightness(value.toInt()))
-
-            }
-        )
     }
 
     private fun bindViews() {
