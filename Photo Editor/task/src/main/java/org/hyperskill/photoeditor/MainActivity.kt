@@ -126,7 +126,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun applyFilters(brightness: Int, contrast: Int, saturation: Int, gamma: Float): Bitmap {
+    private fun applyFilters(brightness: Int, contrast: Int, saturation: Int, gamma: Float): Bitmap {
          var tempPicture = adjustBrightness(brightness)
         tempPicture = adjustContrast(tempPicture, contrast)
         tempPicture = adjustSaturation(tempPicture, saturation)
@@ -204,7 +204,7 @@ class MainActivity : AppCompatActivity() {
         return bitmapOut
     }
 
-    fun adjustBrightness(offset : Int) : Bitmap {
+    private fun adjustBrightness(offset : Int) : Bitmap {
 
         val image = originalImage.copy(Bitmap.Config.RGB_565, true)
 
@@ -233,7 +233,7 @@ class MainActivity : AppCompatActivity() {
         else newColorValue
     }
 
-    fun adjustContrast(image : Bitmap, contrast : Int) : Bitmap {
+    private fun adjustContrast(image : Bitmap, contrast : Int) : Bitmap {
 
         val width = image.width
         val height = image.height
@@ -288,10 +288,6 @@ class MainActivity : AppCompatActivity() {
 
         for (i in pixels.indices) {
             val rgbAvg : Int = (pixels[i].red + pixels[i].green + pixels[i].blue)/3
-
-//            val newRed = (alpha * (pixels[i].red - rgbAvg) + rgbAvg).toInt()
-//            val newGreen = (alpha * (pixels[i].green - rgbAvg) + rgbAvg).toInt()
-//            val newBlue = (alpha * (pixels[i].blue - rgbAvg) + rgbAvg).toInt()
 
             val newRed = makeAdjust(pixels[i].red, rgbAvg)
             val newGreen = makeAdjust(pixels[i].green, rgbAvg)
