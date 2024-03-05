@@ -30,7 +30,9 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var currentImage: ImageView
     private lateinit var originalImage : Bitmap
-    private lateinit var slider: Slider
+    private lateinit var tempImage : Bitmap
+    private lateinit var sliderBrightness: Slider
+    private lateinit var sliderContrast: Slider
     private lateinit var btnSave : Button
     private lateinit var btnGallery : Button
 
@@ -39,19 +41,29 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         bindViews()
 
-        slider.addOnChangeListener ( Slider.OnChangeListener { _, value, _ ->
-                currentImage.setImageBitmap(adjustBrightness(value.toInt()))
+        sliderBrightness.addOnChangeListener ( Slider.OnChangeListener { _, value, _ ->
+            tempImage = adjustBrightness(value.toInt())
+            tempImage = adjustContrast(tempImage, sliderContrast.value.toInt())
+            currentImage.setImageBitmap(tempImage)
 
             })
+
+        sliderContrast.addOnChangeListener(Slider.OnChangeListener {_, value, _ ->
+            tempImage = adjustBrightness(sliderBrightness.value.toInt())
+            tempImage = adjustContrast(tempImage, value.toInt())
+            currentImage.setImageBitmap(tempImage)
+        })
 
         //do not change this line
         currentImage.setImageBitmap(createBitmap())
         originalImage = (currentImage.drawable as BitmapDrawable).bitmap
+        tempImage = originalImage
 
         btnGallery.setOnClickListener {
             val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
             activityResultLauncher.launch(intent)
             originalImage = (currentImage.drawable as BitmapDrawable).bitmap
+            tempImage = originalImage
         }
 
         btnSave.setOnClickListener {
@@ -101,7 +113,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun bindViews() {
         currentImage = findViewById(R.id.ivPhoto)
-        slider = findViewById(R.id.slBrightness)
+        sliderBrightness = findViewById(R.id.slBrightness)
+        sliderContrast = findViewById(R.id.slContrast)
         btnSave = findViewById(R.id.btnSave)
         btnGallery = findViewById(R.id.btnGallery)
     }
@@ -150,13 +163,6 @@ class MainActivity : AppCompatActivity() {
 
         val image = originalImage.copy(Bitmap.Config.RGB_565, true)
 
-        fun addOffset(color: Int, offset: Int): Int {
-            val newColorValue = color + offset
-            return if (newColorValue > 255) 255
-            else if (newColorValue < 0) 0
-            else newColorValue
-        }
-
         val pixels = IntArray(image.width * image.height)
         image.getPixels(pixels, 0, image.width, 0,0, image.width, image.height)
 
@@ -171,6 +177,51 @@ class MainActivity : AppCompatActivity() {
 
                 pixels[i] = newColor
         }
+        image.setPixels(pixels, 0, image.width, 0,0, image.width, image.height)
+        return image
+    }
+
+    private fun addOffset(color: Int, offset: Int): Int {
+        val newColorValue = color + offset
+        return if (newColorValue > 255) 255
+        else if (newColorValue < 0) 0
+        else newColorValue
+    }
+
+    fun adjustContrast(image : Bitmap, contrast : Int) : Bitmap {
+
+        val width = image.width
+        val height = image.height
+        var total = 0
+
+        val pixels = IntArray(image.width * image.height)
+        image.getPixels(pixels, 0, width, 0,0, width, height)
+
+        for (i in pixels.indices) {
+            total += (pixels[i].red + pixels[i].green + pixels[i].blue)
+        }
+
+        val avgBrightness = total/(image.width * image.height * 3).toLong()
+        val alpha : Double = (255 + contrast)/(255 - contrast).toDouble()
+
+        fun makeContrast (color: Int) : Int {
+            val newColorValue = (alpha * (color - avgBrightness) + avgBrightness).toInt()
+            return if (newColorValue > 255) 255
+            else if (newColorValue < 0) 0
+            else newColorValue
+        }
+
+        for (i in pixels.indices) {
+
+            val newColor = Color.rgb(
+                makeContrast(pixels[i].red),
+                makeContrast(pixels[i].green),
+                makeContrast(pixels[i].blue)
+            )
+            pixels[i] = newColor
+        }
+
+
         image.setPixels(pixels, 0, image.width, 0,0, image.width, image.height)
         return image
     }

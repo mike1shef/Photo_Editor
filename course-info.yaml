@@ -11,4 +11,5 @@ programming_language: Kotlin
 environment: Android
 content:
   - Photo Editor
+  - Topics
 mode: Study
