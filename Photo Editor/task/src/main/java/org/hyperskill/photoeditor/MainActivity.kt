@@ -2,27 +2,38 @@ package org.hyperskill.photoeditor
 
 import android.app.Activity
 import android.content.Intent
+import android.Manifest
+import android.content.ContentValues
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
 import android.provider.MediaStore
+import android.provider.MediaStore.Images
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.blue
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.green
 import androidx.core.graphics.red
 import com.google.android.material.slider.Slider
 
+private const val MEDIA_REQUEST_CODE = 0
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var currentImage: ImageView
     private lateinit var originalImage : Bitmap
     private lateinit var slider: Slider
+    private lateinit var btnSave : Button
+    private lateinit var btnGallery : Button
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -37,21 +48,62 @@ class MainActivity : AppCompatActivity() {
         currentImage.setImageBitmap(createBitmap())
         originalImage = (currentImage.drawable as BitmapDrawable).bitmap
 
-        val btnGallery = findViewById<Button>(R.id.btnGallery).setOnClickListener {
+        btnGallery.setOnClickListener {
             val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
             activityResultLauncher.launch(intent)
             originalImage = (currentImage.drawable as BitmapDrawable).bitmap
         }
 
-        val btnSave = findViewById<Button>(R.id.btnSave).setOnClickListener {
+        btnSave.setOnClickListener {
+            when(ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                PackageManager.PERMISSION_GRANTED -> {
+                    val bitmap: Bitmap = currentImage.drawable.toBitmap()
+                    val values = ContentValues()
+                    values.put(Images.Media.DATE_TAKEN, System.currentTimeMillis())
+                    values.put(Images.Media.MIME_TYPE, "image/jpeg")
+                    values.put(Images.ImageColumns.WIDTH, bitmap.width)
+                    values.put(Images.ImageColumns.HEIGHT, bitmap.height)
 
+                    val uri = this@MainActivity.contentResolver.insert(
+                        Images.Media.EXTERNAL_CONTENT_URI, values
+                    ) ?: return@setOnClickListener
+
+                    contentResolver.openOutputStream(uri).use {
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it)
+                    }
+                }
+                PackageManager.PERMISSION_DENIED -> {
+                    ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), MEDIA_REQUEST_CODE)
+                }
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        when (requestCode){
+            MEDIA_REQUEST_CODE -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    btnSave = findViewById(R.id.btnSave)
+                    btnSave.callOnClick()
+                } else {
+                    Toast.makeText(this, "Image cannot be saved without permission", Toast.LENGTH_SHORT).show()
+                }
+
+            }
+            else -> super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         }
 
     }
 
     private fun bindViews() {
         currentImage = findViewById(R.id.ivPhoto)
-        slider = findViewById<Slider>(R.id.slBrightness)
+        slider = findViewById(R.id.slBrightness)
+        btnSave = findViewById(R.id.btnSave)
+        btnGallery = findViewById(R.id.btnGallery)
     }
 
     private val activityResultLauncher =
