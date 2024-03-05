@@ -9,7 +9,6 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
-import android.provider.MediaStore
 import android.provider.MediaStore.Images
 import android.widget.Button
 import android.widget.ImageView
@@ -23,6 +22,7 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.green
 import androidx.core.graphics.red
 import com.google.android.material.slider.Slider
+import kotlin.math.pow
 
 private const val MEDIA_REQUEST_CODE = 0
 
@@ -33,6 +33,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tempImage : Bitmap
     private lateinit var sliderBrightness: Slider
     private lateinit var sliderContrast: Slider
+    private lateinit var sliderSaturation: Slider
+    private lateinit var sliderGamma: Slider
     private lateinit var btnSave : Button
     private lateinit var btnGallery : Button
 
@@ -42,16 +44,49 @@ class MainActivity : AppCompatActivity() {
         bindViews()
 
         sliderBrightness.addOnChangeListener ( Slider.OnChangeListener { _, value, _ ->
-            tempImage = adjustBrightness(value.toInt())
-            tempImage = adjustContrast(tempImage, sliderContrast.value.toInt())
-            currentImage.setImageBitmap(tempImage)
+            tempImage = applyFilters(
+                value.toInt(),
+                sliderContrast.value.toInt(),
+                sliderSaturation.value.toInt(),
+                sliderGamma.value
+            )
 
+            currentImage.setImageBitmap(tempImage)
             })
 
         sliderContrast.addOnChangeListener(Slider.OnChangeListener {_, value, _ ->
-            tempImage = adjustBrightness(sliderBrightness.value.toInt())
-            tempImage = adjustContrast(tempImage, value.toInt())
+            tempImage = applyFilters(
+                sliderBrightness.value.toInt(),
+                value.toInt(),
+                sliderSaturation.value.toInt(),
+                sliderGamma.value
+            )
+
             currentImage.setImageBitmap(tempImage)
+        })
+
+        sliderSaturation.addOnChangeListener(Slider.OnChangeListener {_, value, _ ->
+            tempImage = applyFilters(
+                sliderBrightness.value.toInt(),
+                sliderContrast.value.toInt(),
+                value.toInt(),
+                sliderGamma.value
+            )
+
+            currentImage.setImageBitmap(tempImage)
+        })
+
+        sliderGamma.addOnChangeListener(Slider.OnChangeListener {_, value, _ ->
+
+            tempImage = applyFilters(
+                sliderBrightness.value.toInt(),
+                sliderContrast.value.toInt(),
+                sliderSaturation.value.toInt(),
+                value
+            )
+
+            currentImage.setImageBitmap(tempImage)
+
         })
 
         //do not change this line
@@ -60,7 +95,7 @@ class MainActivity : AppCompatActivity() {
         tempImage = originalImage
 
         btnGallery.setOnClickListener {
-            val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+            val intent = Intent(Intent.ACTION_PICK, Images.Media.EXTERNAL_CONTENT_URI)
             activityResultLauncher.launch(intent)
             originalImage = (currentImage.drawable as BitmapDrawable).bitmap
             tempImage = originalImage
@@ -91,6 +126,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    fun applyFilters(brightness: Int, contrast: Int, saturation: Int, gamma: Float): Bitmap {
+         var tempPicture = adjustBrightness(brightness)
+        tempPicture = adjustContrast(tempPicture, contrast)
+        tempPicture = adjustSaturation(tempPicture, saturation)
+        tempPicture = adjustGamma(tempPicture, gamma)
+        return tempPicture
+    }
+
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -117,6 +160,8 @@ class MainActivity : AppCompatActivity() {
         sliderContrast = findViewById(R.id.slContrast)
         btnSave = findViewById(R.id.btnSave)
         btnGallery = findViewById(R.id.btnGallery)
+        sliderSaturation = findViewById(R.id.slSaturation)
+        sliderGamma = findViewById(R.id.slGamma)
     }
 
     private val activityResultLauncher =
@@ -221,6 +266,79 @@ class MainActivity : AppCompatActivity() {
             pixels[i] = newColor
         }
 
+
+        image.setPixels(pixels, 0, image.width, 0,0, image.width, image.height)
+        return image
+    }
+    private fun adjustSaturation(image: Bitmap, saturation: Int): Bitmap {
+
+        val width = tempImage.width
+        val height = tempImage.height
+        val alpha : Double = (255 + saturation)/(255 - saturation).toDouble()
+
+        val pixels = IntArray(image.width * image.height)
+        image.getPixels(pixels, 0, width, 0,0, width, height)
+
+        fun makeAdjust (color: Int, rgbAvg : Int) : Int {
+            val newColorValue = (alpha * (color - rgbAvg) + rgbAvg).toInt()
+            return if (newColorValue > 255) 255
+            else if (newColorValue < 0) 0
+            else newColorValue
+        }
+
+        for (i in pixels.indices) {
+            val rgbAvg : Int = (pixels[i].red + pixels[i].green + pixels[i].blue)/3
+
+//            val newRed = (alpha * (pixels[i].red - rgbAvg) + rgbAvg).toInt()
+//            val newGreen = (alpha * (pixels[i].green - rgbAvg) + rgbAvg).toInt()
+//            val newBlue = (alpha * (pixels[i].blue - rgbAvg) + rgbAvg).toInt()
+
+            val newRed = makeAdjust(pixels[i].red, rgbAvg)
+            val newGreen = makeAdjust(pixels[i].green, rgbAvg)
+            val newBlue = makeAdjust(pixels[i].blue, rgbAvg)
+
+
+            val newColor = Color.rgb(
+                newRed,
+                newGreen,
+                newBlue
+            )
+
+            pixels[i] = newColor
+        }
+
+        image.setPixels(pixels, 0, image.width, 0,0, image.width, image.height)
+        return image
+    }
+    private fun adjustGamma(image: Bitmap, gamma: Float): Bitmap {
+
+        val width = tempImage.width
+        val height = tempImage.height
+
+
+        val pixels = IntArray(image.width * image.height)
+        image.getPixels(pixels, 0, width, 0,0, width, height)
+
+        for (i in pixels.indices) {
+
+            fun calculateGammaColor (color: Int) : Int {
+                val newColor = 255 * ((color.toFloat() / 255).pow(gamma))
+                return newColor.toInt()
+
+            }
+
+            val newRed = calculateGammaColor(pixels[i].red)
+            val newGreen = calculateGammaColor(pixels[i].green)
+            val newBlue = calculateGammaColor(pixels[i].blue)
+
+            val newColor = Color.rgb(
+                newRed,
+                newGreen,
+                newBlue
+            )
+
+            pixels[i] = newColor
+        }
 
         image.setPixels(pixels, 0, image.width, 0,0, image.width, image.height)
         return image
