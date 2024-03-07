@@ -10,6 +10,7 @@ import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
 import android.os.Bundle
 import android.provider.MediaStore.Images
+import android.util.Log
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.Toast
@@ -22,9 +23,17 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.green
 import androidx.core.graphics.red
 import com.google.android.material.slider.Slider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import kotlin.math.pow
 
 private const val MEDIA_REQUEST_CODE = 0
+private const val TAG = "MainActivity Photo"
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -42,52 +51,73 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         bindViews()
+        var lastJob : Job? = null
+
+        fun applyFilters(
+            brightness: Int,
+            contrast: Int,
+            saturation: Int,
+            gamma: Float
+        ) {
+            lastJob?.cancel()
+
+            lastJob = GlobalScope.launch(Dispatchers.Default) {
+                val bitmap = currentImage.drawable?.toBitmap() ?: return@launch
+
+                tempImage = async{ adjustBrightness(brightness) }.await()
+                Log.d(TAG, "Brightness is adjusted")
+                async { adjustContrast(tempImage, contrast) }.await()
+                Log.d(TAG, "Contrast is adjusted")
+                async { adjustSaturation(tempImage, saturation) }.await()
+                Log.d(TAG, "Saturation is adjusted")
+                async { adjustGamma(tempImage, gamma) }.await()
+                Log.d(TAG, "Gamma is adjusted")
+
+                ensureActive()
+
+                runOnUiThread {
+                    currentImage.setImageBitmap(tempImage)
+                    Log.d(TAG, "Current Screen is updated")
+                }
+            }
+        }
 
         sliderBrightness.addOnChangeListener ( Slider.OnChangeListener { _, value, _ ->
-            tempImage = applyFilters(
-                value.toInt(),
-                sliderContrast.value.toInt(),
-                sliderSaturation.value.toInt(),
-                sliderGamma.value
-            )
-
-            currentImage.setImageBitmap(tempImage)
+                applyFilters(
+                    value.toInt(),
+                    sliderContrast.value.toInt(),
+                    sliderSaturation.value.toInt(),
+                    sliderGamma.value
+                )
             })
 
         sliderContrast.addOnChangeListener(Slider.OnChangeListener {_, value, _ ->
-            tempImage = applyFilters(
-                sliderBrightness.value.toInt(),
-                value.toInt(),
-                sliderSaturation.value.toInt(),
-                sliderGamma.value
-            )
-
-            currentImage.setImageBitmap(tempImage)
+                applyFilters(
+                    sliderBrightness.value.toInt(),
+                    value.toInt(),
+                    sliderSaturation.value.toInt(),
+                    sliderGamma.value
+                )
         })
 
         sliderSaturation.addOnChangeListener(Slider.OnChangeListener {_, value, _ ->
-            tempImage = applyFilters(
-                sliderBrightness.value.toInt(),
-                sliderContrast.value.toInt(),
-                value.toInt(),
-                sliderGamma.value
-            )
-
-            currentImage.setImageBitmap(tempImage)
+            applyFilters(
+                    sliderBrightness.value.toInt(),
+                    sliderContrast.value.toInt(),
+                    value.toInt(),
+                    sliderGamma.value
+                )
         })
 
         sliderGamma.addOnChangeListener(Slider.OnChangeListener {_, value, _ ->
-
-            tempImage = applyFilters(
-                sliderBrightness.value.toInt(),
-                sliderContrast.value.toInt(),
-                sliderSaturation.value.toInt(),
-                value
-            )
-
-            currentImage.setImageBitmap(tempImage)
-
+                applyFilters(
+                    sliderBrightness.value.toInt(),
+                    sliderContrast.value.toInt(),
+                    sliderSaturation.value.toInt(),
+                    value
+                )
         })
+
 
         //do not change this line
         currentImage.setImageBitmap(createBitmap())
@@ -104,6 +134,7 @@ class MainActivity : AppCompatActivity() {
         btnSave.setOnClickListener {
             when(ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
                 PackageManager.PERMISSION_GRANTED -> {
+
                     val bitmap: Bitmap = currentImage.drawable.toBitmap()
                     val values = ContentValues()
                     values.put(Images.Media.DATE_TAKEN, System.currentTimeMillis())
@@ -125,15 +156,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
-    private fun applyFilters(brightness: Int, contrast: Int, saturation: Int, gamma: Float): Bitmap {
-         var tempPicture = adjustBrightness(brightness)
-        tempPicture = adjustContrast(tempPicture, contrast)
-        tempPicture = adjustSaturation(tempPicture, saturation)
-        tempPicture = adjustGamma(tempPicture, gamma)
-        return tempPicture
-    }
-
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -174,15 +196,15 @@ class MainActivity : AppCompatActivity() {
         }
 
     // do not change this function
-    fun createBitmap(): Bitmap {
+    private fun createBitmap(): Bitmap {
         val width = 200
         val height = 100
         val pixels = IntArray(width * height)
         // get pixel array from source
 
-        var R: Int
-        var G: Int
-        var B: Int
+        var r: Int
+        var g: Int
+        var b: Int
         var index: Int
 
         for (y in 0 until height) {
@@ -190,11 +212,11 @@ class MainActivity : AppCompatActivity() {
                 // get current index in 2D-matrix
                 index = y * width + x
                 // get color
-                R = x % 100 + 40
-                G = y % 100 + 80
-                B = (x+y) % 100 + 120
+                r = x % 100 + 40
+                g = y % 100 + 80
+                b = (x+y) % 100 + 120
 
-                pixels[index] = Color.rgb(R,G,B)
+                pixels[index] = Color.rgb(r,g,b)
 
             }
         }
